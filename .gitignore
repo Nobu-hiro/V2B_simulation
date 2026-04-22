@@ -1,0 +1,18 @@
+# キャッシュ
+__pycache__/
+*.pyc
+
+# 大容量ファイル
+*.xlsx
+*.zip
+
+# 画像フォルダ
+IMG/
+IMG2/
+IMG -Cluster4/
+IMG-Cluster5/
+
+# 出力系
+EnergyManagement_Output_*/
+output_sensitivity/
+assessment_sensitivity_output/
