@@ -4,6 +4,8 @@
 
 The V2X Decision Support Simulator is a two-stage simulation system that evaluates V2X (Vehicle-to-Everything) energy technology effectiveness across structural conditions without generating region-specific demand time-series. The system operates as a standalone Python project (`V2X_Decision_Support_Simulator/`) coexisting with but independent from the existing `V2B_simulation` and `V2C_Simulation` codebases.
 
+This simulator is motivated by the following tension: (i) constructing detailed region-specific time-series demand data is not practical, while (ii) V2X effectiveness cannot be meaningfully discussed under a single nationwide average assumption. To address this, the simulator explicitly abstracts only the structural factors that fundamentally determine V2X operational behavior and effectiveness—namely demand structure, EV usage patterns, PV installation constraints, and electricity pricing regimes. The system therefore adopts a two-stage architecture: (Offline) the V2X response to all representative structural conditions is precomputed, and (Online) regional characteristics are mapped to these responses via categorical distributions, without generating region-specific demand time series.
+
 The architecture follows a precompute-then-aggregate pattern:
 
 1. **Base Effect Simulator (Offline)**: Solves a unified linear optimization model across all 648 categorical scenario combinations (2 × 3 × 3 × 3 × 4 × 3), storing dimensionless relative effect metrics in a Base Effect Table.
@@ -75,6 +77,16 @@ class EVUsageType(Enum):
     FLEET = "Fleet"
 
 class EVEffectiveCapacityCategory(Enum):
+    """
+    Represents the amount of energy effectively available for V2X operation,
+    normalized by annual demand. This category implicitly aggregates battery
+    capacity (kWh), connection rate, operational allowance, and degradation
+    considerations. Power limits and availability timing are represented
+    separately through EVUsageType (Private / Commuting / Fleet). This
+    abstraction is intentional: it does not aim to replace detailed EV
+    physical models, but rather to capture the dominant first-order
+    constraints relevant for early-stage V2X deployment decisions.
+    """
     LOW = "Low"
     MEDIUM = "Medium"
     HIGH = "High"
@@ -105,6 +117,8 @@ A single function `solve_scenario(demand_profile, scenario, params) -> ScenarioR
 - Accepts scenario enum to determine constraint switches
 - Accepts parameter dict with PV upper limit fraction, EV capacity fraction, pricing weights
 - Returns `ScenarioResult` dataclass with optimal PV capacity ratio, total cost ratio, peak ratio
+
+The Base Effect Table (BET) adopts a minimal scenario set designed to isolate incremental value along a realistic deployment pathway: PV-only, PV + EV (without V2X control), PV + V2X. This structure cleanly separates the marginal impact of EV storage and V2X control. Additional scenarios—such as no-PV baseline, PV re-optimization after V2X introduction, or joint optimization—are treated as structural validation and sensitivity analysis, and are intentionally separated from the core BET definition to preserve interpretability.
 
 Constraint switching logic:
 - **PV-only**: `ev_charge[t] = 0, ev_discharge[t] = 0` for all t
@@ -165,6 +179,8 @@ class IncrementalEffect:
 - `serialize(path)`: writes JSON
 - `deserialize(path) -> BaseEffectTable`: reads JSON, validates schema
 - `validate_no_absolute_units()`: checks all stored values are dimensionless ratios
+
+**Design Note — BET as a Structural Map:** The Base Effect Table should not be interpreted as a static result repository. Rather, it functions as a structural map of V2X effectiveness, systematically revealing how key parameters constrain or amplify V2X value. By varying EV capacity categories, PV limits, and pricing regimes across the table, the simulator enables analysis of saturation effects, regime shifts, and limiting factors—providing causal explanations for regional evaluation results.
 
 ### 5. Regional Evaluation Engine (`v2x_dss/regional_evaluation_engine.py`)
 
